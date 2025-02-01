@@ -1,0 +1,46 @@
+version: "3.7"
+
+
+services:
+  app:
+    container_name: django-app
+    build:
+      context: .
+    depends_on:
+      - postgres
+    ports:
+      - 8000:8000
+    environment:
+      - DEBUG=False
+    command: >
+      sh -c "
+        python manage.py collectstatic --no-input &&
+        python manage.py makemigrations &&
+        python manage.py migrate &&
+        gunicorn app.wsgi --bind 0.0.0.0:8000
+      "
+
+  postgres:
+    image: postgres
+    container_name: pg-db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    env_file:
+      - app/.env
+    ports:
+      - 5432:5432
+    restart: always
+
+  proxy:
+    container_name: nginx-proxy
+    build:
+      context: ./proxy
+    ports:
+      - 80:80
+    depends_on:
+      - app
+  
+
+volumes:
+  postgres_data:
+
