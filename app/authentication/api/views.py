@@ -1,5 +1,5 @@
 from rest_framework import views, permissions
-from .serializers import LoginSerializer, SignupSerializer, ProfileSerializer
+from .serializers import LoginSerializer, SignupSerializer, ProfileSerializer, ChangePasswordSerializer
 from django.contrib.auth import login
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.response import Response
@@ -9,8 +9,7 @@ from rest_framework import status
 from ..models import User
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
-import email_handler as emailHandler
-from base.permissions import IsVerifiedUser
+# from base.permissions import IsVerifiedUser
 from rest_framework.decorators import api_view
 # Create your views here.
 
@@ -83,7 +82,7 @@ class ProfileView(RetrieveAPIView):
 
 
 class ProfileUpdateView(CreateAPIView):
-    permission_classes = [IsAuthenticated, IsVerifiedUser]
+    permission_classes = [IsAuthenticated]
     authentication_classes = [JWTAuthentication]
 
     def create(self, request, *args, **kwargs):
@@ -108,3 +107,13 @@ class ProfileUpdateView(CreateAPIView):
                 "error": serializer.errors,
                 }
             )
+        
+
+class ChangePassword(UpdateAPIView):
+    queryset = User.objects.all()
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    serializer_class = ChangePasswordSerializer
+
+    def get_object(self):
+        return self.request.user

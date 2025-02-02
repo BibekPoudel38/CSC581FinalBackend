@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from ..models import User
 from django.contrib.auth import authenticate
-import validators
+from .validators import validate_password
 
 
 class LoginSerializer(serializers.Serializer):
@@ -79,7 +79,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 class ChangePasswordSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
-        write_only=True, required=True, validators=[validators.validate_password])
+        write_only=True, required=True, validators=[validate_password])
 
     old_password = serializers.CharField(write_only=True, required=True)
 
@@ -99,25 +99,3 @@ class ChangePasswordSerializer(serializers.ModelSerializer):
         instance.set_password(validated_data['password'])
         instance.save()
         return instance
-
-
-# class ResetPasswordSerializer(serializers.ModelSerializer):
-#     password = serializers.CharField(
-#         write_only=True, required=True, validators=[validators.validate_password])
-#     code = serializers.CharField(write_only=True, required=True)
-#     email = serializers.CharField(write_only=True, required=True)
-
-#     class Meta:
-#         model = User
-#         fields = ['password', 'code', 'email']
-
-#     def update(self, instance, validated_data):
-#         otp_obj = OtpModel.objects.get(
-#             email=validated_data['email'])
-#         user = User.objects.get(email=otp_obj.email)
-#         if otp_obj.code == validated_data['code']:
-#             user.set_password(validated_data['password'])
-#             user.firebase_token = ""
-#             user.save()
-#             return instance
-#         return None
