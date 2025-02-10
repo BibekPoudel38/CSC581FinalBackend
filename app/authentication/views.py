@@ -1,4 +1,4 @@
-from app.authentication.helpers import send_user_email
+from .helpers import send_user_email
 from rest_framework import status, views
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
