@@ -10,7 +10,7 @@ class UserAdminPanelModel(admin.ModelAdmin):
     list_display = ['username', 'email', 'is_admin',
                     'is_staff', 'is_superuser', 'is_active']
     list_filter = ['is_admin']
-    search_fields = ['username', 'mobile_no', 'email']
+    search_fields = ['username', 'email']
     search_help_text = 'Search by Username, Email, Phone number'
     ordering = ['created_at', 'updated_at']
     save_as = True

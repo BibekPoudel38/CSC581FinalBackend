@@ -4,33 +4,29 @@ Copyright (c) 2019 - present AppSeed.us
 """
 
 from django.db import models
-from django.contrib.auth.models import (
-    BaseUserManager, AbstractBaseUser
-)
+from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
 from datetime import datetime, timedelta
 
 # Create your models here.
 
 
 class MyUserManager(BaseUserManager):
-    def create_user(self, username, password):
-        if not username:
-            raise ValueError('Users must have an username')
-        user = self.model(
-            username=username,
-        )
+    def create_user(self, username, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError("The Email field must be set")
+        email = self.normalize_email(email)
+        user = self.model(email=email, username=username)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, username, password=None, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('is_active', True)
-        user = self.create_user(
-            username,
-            password=password,
-        )
+    def create_superuser(self, username, email, password=None, **extra_fields):
+        extra_fields.setdefault("is_admin", True)
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        extra_fields.setdefault("is_active", True)
+        extra_fields.setdefault("is_mentor", True)
+        user = self.create_user(username, email, password=password, **extra_fields)
         user.is_admin = True
         user.save(using=self._db)
         return user
@@ -38,17 +34,21 @@ class MyUserManager(BaseUserManager):
 
 class User(AbstractBaseUser):
     username = models.CharField(max_length=255, unique=True)
-    mobile_no = models.CharField(max_length=255, blank=True, null=True)
-    email = models.EmailField(blank=True, null=True)
-    is_disabled = models.BooleanField(default=False)
+    email = models.EmailField(max_length=255, unique=True)
+    password = models.CharField(max_length=255)
     is_admin = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=False)
+    is_mentor = models.BooleanField(default=False)
+    date_joined = models.DateTimeField(auto_now_add=True)
+    otp = models.CharField(max_length=6, blank=True, null=True)
     created_at = models.DateTimeField(verbose_name="Created at", auto_now_add=True)
     updated_at = models.DateTimeField(verbose_name="Updated at", auto_now=True)
+
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["username"]
+
     objects = MyUserManager()
-    USERNAME_FIELD = 'username'
-    REQUIRED_FIELDS = []
 
     def __str__(self):
         return f"{self.username}"
@@ -70,4 +70,3 @@ class User(AbstractBaseUser):
     @property
     def is_superuser(self):
         return self.is_admin
-

@@ -7,6 +7,8 @@ services:
       context: .
     environment:
       - DEBUG=True
+      - EMAIL_HOST_USER="poudelbibek38@gmail.com"
+      - EMAIL_HOST_PASSWORD="bhlecgixcvzauosp"
     ports:
       - 8000:8000
     command: "python manage.py runserver 0.0.0.0:8000"
