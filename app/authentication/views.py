@@ -1,8 +1,9 @@
+from app.authentication.helpers import send_user_email
 from rest_framework import status, views
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import CustomUserSerializer, LoginSerializer, OTPSerializer
-from django.core.mail import send_mail
+
 import random
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import IsAuthenticated
@@ -20,11 +21,10 @@ class SignupView(views.APIView):
             user.save()
 
             # Send email with OTP code
-            send_mail(
-                "OTP Verification",
-                f"Your OTP code is {otp_code}",
-                "poudelbibek38@gmail.com",
-                [user.email],
+            send_user_email(
+                receiver=user.email,
+                subject="OTP Verification",
+                message=f"Your OTP code is {otp_code}",
             )
 
             return Response(
@@ -132,13 +132,12 @@ class ForgotPasswordView(views.APIView):
         user.otp = otp_code
         user.save()
 
-        send_mail(
-            "OTP Verification",
-            f"Your OTP code is {otp_code}",
-            "poudelbibek38@gmail.com",
-            [user.email],
+        send_user_email(
+            receiver=user.email,
+            subject="OTP Verification",
+            message=f"Your OTP code is {otp_code}",
         )
-        
+
         return Response(
             {"message": "OTP code sent to your email"},
             status=status.HTTP_200_OK,

@@ -7,7 +7,7 @@ services:
       context: .
     environment:
       - DEBUG=True
-      - EMAIL_HOST_USER="poudelbibek38@gmail.com"
+      - EMAIL_HOST_USER="someone@gmail.com"
       - EMAIL_HOST_PASSWORD="bhlecgixcvzauosp"
     ports:
       - 8000:8000
