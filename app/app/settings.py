@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     # Custom apps
     "website",
     "authentication",
+    "threads",
 ]
 
 MIDDLEWARE = [

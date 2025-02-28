@@ -3,8 +3,12 @@ version: "3.7"
 services:
   app:
     container_name: django-app
+    restart: always
     build:
       context: .
+    
+    volumes:
+      - ./app:/app
     environment:
       - DEBUG=True
       - EMAIL_HOST_USER="someone@gmail.com"
@@ -12,6 +16,7 @@ services:
     ports:
       - 8000:8000
     command: "python manage.py runserver 0.0.0.0:8000"
+  
 
 #   postgres:
 #     image: postgres

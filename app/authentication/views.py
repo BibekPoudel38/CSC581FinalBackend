@@ -76,7 +76,7 @@ class LoginView(views.APIView):
                 user = get_user_model().objects.get(username=username_or_email)
             except get_user_model().DoesNotExist:
                 return Response(
-                    {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
+                    {"error": "User not found","username":username_or_email, "password":password}, status=status.HTTP_404_NOT_FOUND
                 )
 
         if not user.check_password(password):
@@ -91,10 +91,11 @@ class LoginView(views.APIView):
             )
 
         refresh = RefreshToken.for_user(user)
+        user.save()
         return Response(
             {
                 "refresh": str(refresh),
-                "access": str(refresh.access_token),
+                "access": str(refresh.access_token)
             },
             status=status.HTTP_200_OK,
         )
