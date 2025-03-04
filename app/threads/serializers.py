@@ -8,7 +8,16 @@ class ThreadSerializer(serializers.ModelSerializer):
         model = Thread
         fields = ['id', 'title', 'content', 'file', 'user', 'view_count', 'up_vote', 'down_vote', 'created_at', 'updated_at', 'comment_count']
         read_only_fields = ["view_count", "up_vote", "down_vote"]
-        
+    
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        user = instance.user
+        data['user'] = {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+        }
+        return data
 
 
 class CommentSerializer(serializers.ModelSerializer):

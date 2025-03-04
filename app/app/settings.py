@@ -21,7 +21,7 @@ SECRET_KEY = (os.getenv("SECRET_KEY"),)
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG")
 
-ALLOWED_HOSTS = ["*", "127.0.0.1"]
+ALLOWED_HOSTS = ["*", "127.0.0.1","0.0.0.0"]
 
 ALLOWED_HOSTS_ENV = os.getenv("ALLOWED_HOSTS")
 if ALLOWED_HOSTS_ENV:
@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "corsheaders",
     # Custom apps
     "website",
     "authentication",
@@ -50,6 +51,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -61,6 +63,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "app.urls"
+CORS_ALLOW_ALL_ORIGINS = True 
 
 # rename to the base app for redurecting
 # LOGIN_REDIRECT_URL = "home"  # Route defined in home/urls.py
