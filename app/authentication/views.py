@@ -1,145 +1,273 @@
-from .helpers import send_user_email
-from rest_framework import status, views
-from rest_framework.response import Response
+from rest_framework import views, permissions
+from .serializers import LoginSerializer, SignupSerializer, ProfileSerializer
+from django.contrib.auth import login
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import CustomUserSerializer, LoginSerializer, OTPSerializer
-
+from rest_framework.response import Response
+from rest_framework.generics import (
+    GenericAPIView,
+    RetrieveAPIView,
+    CreateAPIView,
+    UpdateAPIView,
+)
+from rest_framework.mixins import CreateModelMixin
+from rest_framework import status
+from .models import User
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
 import random
-from django.contrib.auth import get_user_model
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.permissions import IsAuthenticated
-from django.contrib.auth import authenticate
+
+# views.py
+from rest_framework.views import APIView
+import requests
+from django.views.decorators.csrf import csrf_exempt
+
+# import email_handler as emailHandler
+# from base.permissions import IsVerifiedUser
+from rest_framework.decorators import api_view
+
+# Create your views here.
 
 
-class SignupView(views.APIView):
-    def post(self, request):
-        serializer = CustomUserSerializer(data=request.data)
-        if serializer.is_valid():
-            user = serializer.save()
-            otp_code = str(random.randint(100000, 999999))
-            user.otp = otp_code
+class LoginView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, format=None):
+        serializer = LoginSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.validated_data["user"]
+            login(request, user)
+            jwt_token = RefreshToken.for_user(user)
             user.save()
-
-            # Send email with OTP code
-            send_user_email(
-                receiver=user.email,
-                subject="OTP Verification",
-                message=f"Your OTP code is {otp_code}",
-            )
-
             return Response(
                 {
-                    "message": "Account created. Please verify with the OTP code sent to the email",
-                    "data": serializer.data,
-                },
-                status=status.HTTP_201_CREATED,
-            )
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class VerifyOTPView(views.APIView):
-    def post(self, request):
-        otp = request.data.get("otp")
-        if not otp:
-            return Response(
-                {"error": "Please provide OTP code"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            user = get_user_model().objects.get(otp=otp)
-            user.is_active = True
-            user.otp = None
-            user.save()
-
-            return Response(
-                {
-                    "message": "Email verified",
+                    "refresh": str(jwt_token),
+                    "access": str(jwt_token.access_token),
                 },
                 status=status.HTTP_200_OK,
             )
 
-        except get_user_model().DoesNotExist:
-            return Response(
-                {"error": "Invalid OTP code"}, status=status.HTTP_400_BAD_REQUEST
-            )
 
+class SignupView(GenericAPIView, CreateModelMixin):
+    serializer_class = SignupSerializer
 
-class LoginView(views.APIView):
-    def post(self, request):
-        username_or_email = request.data.get("username_or_email")
-        password = request.data.get("password")
-
-        try:
-            user = get_user_model().objects.get(email=username_or_email)
-        except get_user_model().DoesNotExist:
-            try:
-                user = get_user_model().objects.get(username=username_or_email)
-            except get_user_model().DoesNotExist:
+    def post(self, requset, **kwargs):
+        serializer = self.serializer_class(data=requset.data)
+        if serializer.is_valid():
+            user = serializer.create(requset.data, **kwargs)
+            if user:
+                # sendOTPCode(user.email)
+                jwt_token = RefreshToken.for_user(user)
                 return Response(
-                    {"error": "User not found","username":username_or_email, "password":password}, status=status.HTTP_404_NOT_FOUND
+                    {
+                        "status": True,
+                        "message": "Account created",
+                        "refresh": str(jwt_token),
+                        "access": str(jwt_token.access_token),
+                    },
+                    status=status.HTTP_201_CREATED,
                 )
-
-        if not user.check_password(password):
+            else:
+                return Response(
+                    {
+                        "status": False,
+                        "message": "Unable to create account",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
             return Response(
-                {"error": "Invalid password"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if not user.is_active:
-            return Response(
-                {"error": "Please verify your email"},
+                {
+                    "status": False,
+                    "errors": serializer.errors,
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        refresh = RefreshToken.for_user(user)
-        user.save()
+
+class ProfileView(RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+    queryset = User.objects.all()
+
+    def get(self, request):
+        user = request.user
+        serializer = ProfileSerializer(user, context={"request": request})
         return Response(
             {
-                "refresh": str(refresh),
-                "access": str(refresh.access_token)
+                "profile": serializer.data,
             },
             status=status.HTTP_200_OK,
         )
 
 
-class ChangePasswordView(views.APIView):
+class ProfileUpdateView(CreateAPIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
 
-    def post(self, request):
-        old_password = request.data.get("old_password")
-        new_password = request.data.get("new_password")
+    def create(self, request, *args, **kwargs):
+        user = request.user
+        data = request.data
+        print(data)
+        serializer = ProfileSerializer(data=data, instance=user)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {
+                    "status": True,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        else:
+            return Response(
+                {
+                    "status": False,
+                    "error": serializer.errors,
+                }
+            )
 
+
+class ChangePassword(CreateAPIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    def create(self, request, *args, **kwargs):
+        old_password = request.data["old_password"]
+        new_password = request.data["new_password"]
         user = request.user
         if not user.check_password(old_password):
             return Response(
-                {"error": "Invalid old password"}, status=status.HTTP_400_BAD_REQUEST
+                {
+                    "status": False,
+                    "message": "Old password is incorrect",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
-
         user.set_password(new_password)
         user.save()
-        return Response({"message": "Password changed"}, status=status.HTTP_200_OK)
-
-
-class ForgotPasswordView(views.APIView):
-    def post(self, request):
-        email = request.data.get("email")
-        try:
-            user = get_user_model().objects.get(email=email)
-        except get_user_model().DoesNotExist:
-            return Response(
-                {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
-            )
-
-        otp_code = str(random.randint(100000, 999999))
-        user.otp = otp_code
-        user.save()
-
-        send_user_email(
-            receiver=user.email,
-            subject="OTP Verification",
-            message=f"Your OTP code is {otp_code}",
+        return Response(
+            {
+                "status": True,
+                "message": "Password changed successfully",
+            },
+            status=status.HTTP_200_OK,
         )
 
+
+# When the user asks for reset password, send the email with the OTP Code to reset the password
+@api_view(["POST"])
+def send_reset_password_otp(request):
+    email = request.data["email"]
+    user = User.objects.filter(email=email).first()
+    if user:
+        otp = random.randint(100000, 999999)
+        # emailHandler.send_otp(email, otp)
+        user.otp = otp
+        print(otp)
+        user.save()
         return Response(
-            {"message": "OTP code sent to your email"},
+            {
+                "status": True,
+                "message": "OTP sent to your email",
+            },
             status=status.HTTP_200_OK,
+        )
+    else:
+        return Response(
+            {
+                "status": False,
+                "message": "User with the email doesnot exist",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+# Now when the user sends the otp code, check if the otp is correct
+# cors exception
+@csrf_exempt
+@api_view(["POST"])
+def verify_reset_password_otp(request):
+    email = request.data["email"]
+    otp = request.data["otp"]
+    user = User.objects.filter(email=email).first()
+    if user.otp == otp:
+        return Response(
+            {
+                "status": True,
+                "message": "OTP is correct",
+            },
+            status=status.HTTP_200_OK,
+        )
+    else:
+        return Response(
+            {
+                "status": False,
+                "message": "OTP is incorrect",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+# Now when the user sends the new password, check if the otp is correct and update the password
+@csrf_exempt
+@api_view(["POST"])
+def reset_password(request):
+    email = request.data["email"]
+    otp = request.data["otp"]
+    password = request.data["password"]
+    user = User.objects.filter(email=email, otp=otp).first()
+    if not user:
+        return Response(
+            {
+                "status": False,
+                "message": "OTP is incorrect",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    user.set_password(password)
+    user.save()
+    return Response(
+        {
+            "status": True,
+            "message": "Password reset successfully",
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+class GoogleLoginAPIView(APIView):
+
+    def post(self, request, format=None):
+        print("here")
+        id_token = request.data.get("token")
+
+        if id_token is None:
+            return Response(
+                {"error": "Token missing"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Verify the token
+        google_verify_url = (
+            f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token}"
+        )
+        response = requests.get(google_verify_url)
+        if response.status_code != 200:
+            return Response(
+                {"error": "Invalid token"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user_info = response.json()
+        email = user_info["email"]
+        name = user_info.get("name", "")
+
+        # Find or create user
+        user, created = User.objects.get_or_create(
+            email=email, defaults={"username": email.split("@")[0], "first_name": name}
+        )
+
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+            }
         )
