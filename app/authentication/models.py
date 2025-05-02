@@ -1,8 +1,3 @@
-# -*- encoding: utf-8 -*-
-"""
-Copyright (c) 2019 - present AppSeed.us
-"""
-
 from django.db import models
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
 from datetime import datetime, timedelta
@@ -11,47 +6,44 @@ from datetime import datetime, timedelta
 
 
 class MyUserManager(BaseUserManager):
-    def create_user(self, username, email, password=None, **extra_fields):
+    def create_user(self, email, password):
         if not email:
-            raise ValueError("The Email field must be set")
-        email = self.normalize_email(email)
-        user = self.model(email=email, username=username)
+            raise ValueError("Users must have an email")
+        user = self.model(
+            email=email,
+        )
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, username, email, password=None, **extra_fields):
-        extra_fields.setdefault("is_admin", True)
+    def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
-        extra_fields.setdefault("is_mentor", True)
-        user = self.create_user(username, email, password=password, **extra_fields)
+        user = self.create_user(
+            email,
+            password=password,
+        )
         user.is_admin = True
         user.save(using=self._db)
         return user
 
 
 class User(AbstractBaseUser):
-    username = models.CharField(max_length=255, unique=True)
-    email = models.EmailField(max_length=255, unique=True)
-    password = models.CharField(max_length=255)
+    email = models.EmailField(blank=True, null=True, unique=True)
+    is_disabled = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=False)
-    is_mentor = models.BooleanField(default=False)
-    date_joined = models.DateTimeField(auto_now_add=True)
-    otp = models.CharField(max_length=6, blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    otp = models.CharField(blank=True, max_length=6, null=True)
     created_at = models.DateTimeField(verbose_name="Created at", auto_now_add=True)
     updated_at = models.DateTimeField(verbose_name="Updated at", auto_now=True)
-
-    USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["username"]
-
     objects = MyUserManager()
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = []
 
     def __str__(self):
-        return f"{self.username}"
+        return f"{self.email}"
 
     def has_perm(self, perm, obj=None):
         return True
